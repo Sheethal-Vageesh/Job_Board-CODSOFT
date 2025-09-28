@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Job · JobBoard</title>
+  <link rel="stylesheet" href="./css/style.css"/>
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module">
+    import { seed, formatDate } from './js/data.js';
+    import { renderHeader, bindHeader, renderFooter, toast } from './js/ui.js';
+    import { storage, keys } from './js/storage.js';
+    import { currentUser } from './js/auth.js';
+
+    seed();
+    const id = new URLSearchParams(window.location.search).get('id');
+    const jobs = storage.get(keys.jobs, []);
+    const job = jobs.find(j=>j.id===id);
+
+    const app = document.getElementById('app');
+    if(!job){
+      app.innerHTML = `${renderHeader()}<section class='container'><div class='card padded'>Job not found.</div></section>${renderFooter()}`;
+      bindHeader();
+    }else{
+      app.innerHTML = `
+        ${renderHeader('listings')}
+        <section class="container">
+          <div class="card padded" style="margin-bottom:16px">
+            <h2 style="margin:0 0 4px">${job.title}</h2>
+            <div class="job meta" style="padding:0">
+              <span class="chip">${job.company}</span>
+              <span class="chip">${job.location}</span>
+              <span class="chip">${job.type}</span>
+              <span class="chip">Posted ${formatDate(job.createdAt)}</span>
+            </div>
+            <div style="margin-top:10px;color:#a7f3d0">${job.salary||''}</div>
+            <p style="color:#cbd5e1;white-space:pre-wrap">${job.description}</p>
+          </div>
+          <div class="card padded">
+            <h3 style="margin-top:0">Apply for this job</h3>
+            <form id="applyForm" class="two-col">
+              <div>
+                <label>Full Name</label>
+                <input class="input" name="name" required/>
+              </div>
+              <div>
+                <label>Email</label>
+                <input class="input" name="email" type="email" required/>
+              </div>
+              <div style="grid-column:1/-1">
+                <label>Cover Letter</label>
+                <textarea class="input" name="cover" rows="4" placeholder="Write a brief cover letter..."></textarea>
+              </div>
+              <div>
+                <label>Resume (PDF)</label>
+                <input class="input" type="file" name="resume" accept="application/pdf" required/>
+              </div>
+              <div style="align-self:end;justify-self:end">
+                <button class="btn">Submit Application</button>
+              </div>
+            </form>
+          </div>
+        </section>
+        ${renderFooter()}
+      `;
+      bindHeader();
+
+      async function fileToBase64(file){
+        // Use FileReader for broad browser compatibility
+        return new Promise((resolve, reject)=>{
+          const reader = new FileReader();
+          reader.onload = () => {
+            const result = reader.result || '';
+            const base64 = String(result).split(',')[1] || '';
+            resolve(base64);
+          };
+          reader.onerror = () => reject(new Error('read-failed'));
+          try{ reader.readAsDataURL(file); }catch(err){ reject(err); }
+        });
+      }
+
+      document.getElementById('applyForm').addEventListener('submit', async (e)=>{
+        e.preventDefault();
+        const fd = new FormData(e.currentTarget);
+        const name = fd.get('name');
+        const email = fd.get('email');
+        const cover = fd.get('cover');
+        const file = fd.get('resume');
+        if(!file || !file.name){ return; }
+        // Basic validations
+        const maxBytes = 8 * 1024 * 1024; // 8MB to be more forgiving
+        if(file.size > maxBytes){ toast('Resume too large. Please upload a PDF under 8 MB.'); return; }
+        // Some environments provide empty or non-standard MIME types; fallback to extension check
+        const nameLower = (file.name||'').toLowerCase();
+        const seemsPdf = (file.type === 'application/pdf') || nameLower.endsWith('.pdf');
+        if(!seemsPdf){ toast('Please choose a .pdf file.'); return; }
+        try{
+          const base64 = await fileToBase64(file);
+          const apps = storage.get(keys.applications, []);
+          const user = currentUser();
+          apps.push({ id: String(Date.now()), jobId: job.id, name, email, cover, resumeName: file.name, resumeBase64: base64, createdAt: Date.now(), candidateId: user?.id||null });
+          storage.set(keys.applications, apps);
+          toast('Application submitted! We sent a confirmation email.');
+          e.currentTarget.reset();
+        }catch(err){
+          console.error('resume upload failed', err);
+          // Likely a cloud-only file (e.g., OneDrive) that isn't available offline or was locked by another app
+          //toast('Could not read the file. If it is in OneDrive, set it to "Always keep on this device" and close any app using it, then try again.');
+        }
+      });
+    }
+  </script>
+</body>
+</html>
+
+

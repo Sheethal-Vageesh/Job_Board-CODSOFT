@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="Job Board Logo">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4F46E5"/>
+      <stop offset="100%" stop-color="#06B6D4"/>
+    </linearGradient>
+  </defs>
+  <rect rx="24" width="128" height="128" fill="url(#g)"/>
+  <g fill="#fff">
+    <circle cx="40" cy="52" r="12"/>
+    <rect x="60" y="40" width="40" height="8" rx="4"/>
+    <rect x="60" y="56" width="28" height="8" rx="4"/>
+    <rect x="24" y="74" width="80" height="8" rx="4"/>
+  </g>
+</svg>
+

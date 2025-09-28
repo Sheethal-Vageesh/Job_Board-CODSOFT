@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Job Listings · JobBoard</title>
+  <link rel="stylesheet" href="./css/style.css"/>
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module">
+    import { seed } from './js/data.js';
+    import { renderHeader, bindHeader, renderFooter } from './js/ui.js';
+    import { storage, keys } from './js/storage.js';
+
+    seed();
+
+    function getParam(name){ return new URLSearchParams(window.location.search).get(name); }
+    const qParam = (getParam('q')||'').toLowerCase();
+
+    const all = storage.get(keys.jobs, []);
+    const filtered = all.filter(j => {
+      if(!qParam) return true;
+      const blob = `${j.title} ${j.company} ${j.location} ${j.type} ${j.description}`.toLowerCase();
+      return blob.includes(qParam);
+    });
+
+    const app = document.getElementById('app');
+    app.innerHTML = `
+      ${renderHeader('listings')}
+      <section class="container">
+        <div class="card padded" style="margin-bottom:16px">
+          <div class="two-col">
+            <input id="q" class="input" placeholder="Search jobs" value="${qParam}"/>
+            <select id="type">
+              <option value="">All Types</option>
+              <option>Full-time</option>
+              <option>Part-time</option>
+              <option>Contract</option>
+              <option>Internship</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid jobs" id="list"></div>
+      </section>
+      ${renderFooter()}
+    `;
+    bindHeader();
+
+    function render(list){
+      const host = document.getElementById('list');
+      host.innerHTML = list.map(j=>`
+        <a href="./job.html?id=${j.id}" class="card job">
+          <div class="title">${j.title}</div>
+          <div class="meta">
+            <span class="chip">${j.company}</span>
+            <span class="chip">${j.location}</span>
+            <span class="chip">${j.type}</span>
+          </div>
+          <div style="color:#a7f3d0">${j.salary||''}</div>
+        </a>
+      `).join('');
+    }
+
+    const typeEl = document.getElementById('type');
+    const qEl = document.getElementById('q');
+    function apply(){
+      const q = (qEl.value||'').toLowerCase();
+      const t = typeEl.value;
+      render(filtered.filter(j=>{
+        const okType = !t || j.type===t;
+        const blob = `${j.title} ${j.company} ${j.location} ${j.type} ${j.description}`.toLowerCase();
+        const okQ = !q || blob.includes(q);
+        return okType && okQ;
+      }));
+    }
+    qEl.addEventListener('input', apply);
+    typeEl.addEventListener('change', apply);
+    render(filtered);
+  </script>
+</body>
+</html>
+
+

@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Candidate Dashboard · JobBoard</title>
+  <link rel="stylesheet" href="./css/style.css"/>
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module">
+    import { seed, formatDate } from './js/data.js';
+    import { renderHeader, bindHeader, renderFooter, toast } from './js/ui.js';
+    import { storage, keys } from './js/storage.js';
+    import { requireRole } from './js/auth.js';
+
+    seed();
+    const user = requireRole('candidate');
+
+    const app = document.getElementById('app');
+    app.innerHTML = `
+      ${renderHeader('candidate')}
+      <section class="container">
+        <div class="grid" style="grid-template-columns:1fr 1.2fr">
+          <div class="card padded">
+            <h3 style="margin-top:0">Profile</h3>
+            <form id="profileForm" class="grid" style="gap:10px">
+              <input class="input" name="name" placeholder="Full Name" value="${user.name||''}"/>
+              <input class="input" name="email" type="email" placeholder="Email" value="${user.email}" disabled/>
+              <div style="text-align:right"><button class="btn">Save</button></div>
+            </form>
+          </div>
+          <div class="card padded">
+            <h3 style="margin:0 0 8px">Your Applications</h3>
+            <div id="apps"></div>
+          </div>
+        </div>
+      </section>
+      ${renderFooter()}
+    `;
+    bindHeader();
+
+    function renderApps(){
+      const apps = (storage.get(keys.applications, [])||[]).filter(a=>a.candidateId===user.id).sort((a,b)=>b.createdAt-a.createdAt);
+      const host = document.getElementById('apps');
+      if(!apps.length){ host.innerHTML = '<div class="muted">No applications yet.</div>'; return; }
+      host.innerHTML = `
+        <table>
+          <thead><tr><th>Job</th><th>Date</th><th>Resume</th></tr></thead>
+          <tbody>
+            ${apps.map(a=>{
+              const j = (storage.get(keys.jobs, [])||[]).find(x=>x.id===a.jobId);
+              return `<tr><td><a href="./job.html?id=${a.jobId}">${j?.title||''}</a></td><td>${formatDate(a.createdAt)}</td><td><a href="data:application/pdf;base64,${a.resumeBase64}" download="${a.resumeName}">Download</a></td></tr>`;
+            }).join('')}
+          </tbody>
+        </table>`;
+    }
+
+    renderApps();
+
+    document.getElementById('profileForm').addEventListener('submit', (e)=>{
+      e.preventDefault();
+      const fd = new FormData(e.currentTarget);
+      const users = storage.get(keys.users, []);
+      const me = users.find(u=>u.id===user.id);
+      me.name = fd.get('name');
+      storage.set(keys.users, users);
+      toast('Profile saved');
+    });
+  </script>
+  
+</body>
+</html>
+
+

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>JobBoard · Find your next role</title>
+  <link rel="stylesheet" href="./css/style.css"/>
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module">
+    import { seed } from './js/data.js';
+    import { renderHeader, bindHeader, renderFooter } from './js/ui.js';
+    import { storage, keys } from './js/storage.js';
+
+    seed();
+
+    const app = document.getElementById('app');
+    app.innerHTML = `
+      ${renderHeader('home')}
+      <section class="container">
+        <div class="hero card padded">
+          <div>
+            <h1 class="title">Discover jobs that match your ambition</h1>
+            <p class="subtitle">Browse thousands of openings from top companies. Apply in minutes.</p>
+            <div class="searchbar">
+              <input id="q" class="input" placeholder="Search by title, company, or keyword"/>
+              <a class="btn" id="goSearch">Search</a>
+            </div>
+          </div>
+          <img src="./assets/logo.svg" alt="illustration" style="width:80%;max-width:360px;justify-self:center;opacity:.9"/>
+        </div>
+
+        <h3 style="margin:24px 6px">Featured jobs</h3>
+        <div id="featured" class="grid jobs"></div>
+      </section>
+      ${renderFooter()}
+    `;
+    bindHeader();
+
+    const jobs = storage.get(keys.jobs, []);
+    const featured = jobs.filter(j=>j.featured).slice(0,6);
+    const host = document.getElementById('featured');
+    host.innerHTML = featured.map(j=>`
+      <a href="./job.html?id=${j.id}" class="card job">
+        <div class="title">${j.title}</div>
+        <div class="meta">
+          <span class="chip">${j.company}</span>
+          <span class="chip">${j.location}</span>
+          <span class="chip">${j.type}</span>
+        </div>
+        <div style="color:#a7f3d0">${j.salary||''}</div>
+      </a>
+    `).join('');
+
+    document.getElementById('goSearch').addEventListener('click', ()=>{
+      const q = (document.getElementById('q').value||'').trim();
+      const url = new URL('./listings.html', window.location.href);
+      if(q) url.searchParams.set('q', q);
+      window.location.href = url.toString();
+    });
+  </script>
+</body>
+</html>
+
+

@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Employer Dashboard · JobBoard</title>
+  <link rel="stylesheet" href="./css/style.css"/>
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module">
+    import { seed, formatDate } from './js/data.js';
+    import { renderHeader, bindHeader, renderFooter, toast } from './js/ui.js';
+    import { storage, keys, nextId } from './js/storage.js';
+    import { requireRole } from './js/auth.js';
+
+    seed();
+    const user = requireRole('employer');
+
+    const app = document.getElementById('app');
+    app.innerHTML = `
+      ${renderHeader('employer')}
+      <section class="container">
+        <div class="grid" style="grid-template-columns:1fr 1.2fr">
+          <div class="card padded">
+            <h3 style="margin-top:0">Post a Job</h3>
+            <form id="jobForm" class="grid" style="gap:10px">
+              <input class="input" name="title" placeholder="Title" required />
+              <input class="input" name="company" placeholder="Company" value="${user.companyName||''}" />
+              <div class="two-col">
+                <input class="input" name="location" placeholder="Location" />
+                <select class="input" name="type">
+                  <option>Full-time</option>
+                  <option>Part-time</option>
+                  <option>Contract</option>
+                  <option>Internship</option>
+                </select>
+              </div>
+              <input class="input" name="salary" placeholder="Salary (optional)" />
+              <label><input type="checkbox" name="featured"/> Featured</label>
+              <textarea class="input" name="description" rows="5" placeholder="Describe the role" required></textarea>
+              <div style="text-align:right"><button class="btn">Publish</button></div>
+            </form>
+          </div>
+          <div>
+            <div class="card padded" style="margin-bottom:16px">
+              <h3 style="margin:0 0 8px">Your Jobs</h3>
+              <div id="jobs"></div>
+            </div>
+            <div class="card padded">
+              <h3 style="margin:0 0 8px">Recent Applications</h3>
+              <div id="apps"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+      ${renderFooter()}
+    `;
+    bindHeader();
+
+    function renderJobs(){
+      const list = (storage.get(keys.jobs, [])||[]).filter(j=>j.postedBy===user.id);
+      const host = document.getElementById('jobs');
+      if(!list.length){ host.innerHTML = '<div class="muted">No jobs yet.</div>'; return; }
+      host.innerHTML = list.map(j=>`
+        <div class="card padded" style="margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+            <div>
+              <div style="font-weight:600"><a href="./job.html?id=${j.id}">${j.title}</a></div>
+              <div class="meta">${j.company} · ${j.location} · ${j.type} · Posted ${formatDate(j.createdAt)}</div>
+            </div>
+            <div class="actions">
+              <button class="btn secondary" data-edit="${j.id}">Edit</button>
+              <button class="btn danger" data-del="${j.id}">Delete</button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+      host.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click', ()=>{
+        const id = b.getAttribute('data-del');
+        const jobs = storage.get(keys.jobs, []);
+        storage.set(keys.jobs, jobs.filter(x=>x.id!==id));
+        toast('Job removed');
+        renderJobs();
+        renderApps();
+      }));
+      host.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click', ()=>{
+        const id = b.getAttribute('data-edit');
+        window.location.href = `./job.html?id=${id}`;
+      }));
+    }
+
+    function renderApps(){
+      const jobs = (storage.get(keys.jobs, [])||[]).filter(j=>j.postedBy===user.id).map(j=>j.id);
+      const apps = (storage.get(keys.applications, [])||[]).filter(a=>jobs.includes(a.jobId)).sort((a,b)=>b.createdAt-a.createdAt).slice(0,8);
+      const host = document.getElementById('apps');
+      if(!apps.length){ host.innerHTML = '<div class="muted">No applications yet.</div>'; return; }
+      host.innerHTML = `
+        <table>
+          <thead><tr><th>Applicant</th><th>Job</th><th>Date</th><th>Resume</th></tr></thead>
+          <tbody>
+            ${apps.map(a=>{
+              const j = (storage.get(keys.jobs, [])||[]).find(x=>x.id===a.jobId);
+              return `<tr><td>${a.name}</td><td>${j?.title||''}</td><td>${formatDate(a.createdAt)}</td><td><a href="data:application/pdf;base64,${a.resumeBase64}" download="${a.resumeName}">Download</a></td></tr>`;
+            }).join('')}
+          </tbody>
+        </table>`;
+    }
+
+    renderJobs();
+    renderApps();
+
+    document.getElementById('jobForm').addEventListener('submit', (e)=>{
+      e.preventDefault();
+      const fd = new FormData(e.currentTarget);
+      const data = Object.fromEntries(fd.entries());
+      const jobs = storage.get(keys.jobs, []);
+      jobs.unshift({
+        id: nextId(),
+        title: data.title,
+        company: data.company || (user.companyName||'') ,
+        location: data.location||'Remote',
+        type: data.type,
+        salary: data.salary,
+        description: data.description,
+        postedBy: user.id,
+        featured: !!data.featured,
+        createdAt: Date.now()
+      });
+      storage.set(keys.jobs, jobs);
+      e.currentTarget.reset();
+      toast('Job published');
+      renderJobs();
+    });
+  </script>
+</body>
+</html>
+
+

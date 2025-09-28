@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Login / Register · JobBoard</title>
+  <link rel="stylesheet" href="./css/style.css"/>
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module">
+    import { seed } from './js/data.js';
+    import { renderHeader, bindHeader, renderFooter, toast } from './js/ui.js';
+    import { register, login } from './js/auth.js';
+
+    seed();
+    const app = document.getElementById('app');
+    app.innerHTML = `
+      ${renderHeader('auth')}
+      <section class="container">
+        <div class="card padded auth-card">
+          <div class="auth-tabs">
+            <button class="btn" id="tabLogin">Login</button>
+            <button class="btn secondary" id="tabRegister">Register</button>
+          </div>
+          <div id="loginView">
+            <form id="loginForm" class="grid" style="gap:12px">
+              <input class="input" name="email" type="email" placeholder="Email" required />
+              <input class="input" name="password" type="password" placeholder="Password" required />
+              <button class="btn">Login</button>
+            </form>
+          </div>
+          <div id="registerView" style="display:none">
+            <form id="registerForm" class="grid" style="gap:12px">
+              <select class="input" name="role" required>
+                <option value="candidate">Candidate</option>
+                <option value="employer">Employer</option>
+              </select>
+              <input class="input" name="name" placeholder="Full Name" required />
+              <input class="input" name="email" type="email" placeholder="Email" required />
+              <input class="input" name="password" type="password" placeholder="Password (min 8)" required />
+              <input class="input" name="companyName" placeholder="Company (Employer only)" />
+              <button class="btn">Create Account</button>
+            </form>
+          </div>
+        </div>
+      </section>
+      ${renderFooter()}
+    `;
+    bindHeader();
+
+    const tabLogin = document.getElementById('tabLogin');
+    const tabRegister = document.getElementById('tabRegister');
+    const loginView = document.getElementById('loginView');
+    const registerView = document.getElementById('registerView');
+
+    tabLogin.addEventListener('click', ()=>{
+      tabLogin.className = 'btn';
+      tabRegister.className = 'btn secondary';
+      loginView.style.display = '';
+      registerView.style.display = 'none';
+    });
+    tabRegister.addEventListener('click', ()=>{
+      tabLogin.className = 'btn secondary';
+      tabRegister.className = 'btn';
+      loginView.style.display = 'none';
+      registerView.style.display = '';
+    });
+
+    document.getElementById('loginForm').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const fd = new FormData(e.currentTarget);
+      try{
+        await login({ email: fd.get('email'), password: fd.get('password') });
+        toast('Logged in');
+        window.location.href = './index.html';
+      }catch(err){ toast(err.message||'Login failed'); }
+    });
+
+    document.getElementById('registerForm').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const fd = new FormData(e.currentTarget);
+      const data = Object.fromEntries(fd.entries());
+      try{
+        await register({
+          email: data.email,
+          password: data.password,
+          role: data.role,
+          name: data.name,
+          companyName: data.companyName
+        });
+        toast('Account created');
+        window.location.href = './index.html';
+      }catch(err){ toast(err.message||'Registration failed'); }
+    });
+  </script>
+</body>
+</html>
+
+
